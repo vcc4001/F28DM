@@ -17,44 +17,94 @@
 <!--START OF YOUR ANSWERS and SQL STATEMENTS-->
 
     <question id="1">
-        <answer></answer>
+        <answer>Hamlet (1907)</answer>
         <sql>
-            <![CDATA[   your SQL ;   ]]>
+            <![CDATA[   
+                SELECT COUNT(*) FROM imdb.actors;
+              ]]>
         </sql>
     </question>
 
     <question id="2">
-        <answer></answer>
+        <answer>2</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[  
+              SELECT COUNT(*)
+              FROM (
+                SELECT movieid, COUNT(directorid)
+                FROM imdb.movies2directors
+                GROUP BY movieid
+                HAVING COUNT(directorid) > 7);
+            ]]>
         </sql>
     </question>
 
     <question id="3">
-        <answer></answer>
+        <answer>1940</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[   
+              SELECT year
+              FROM imdb.movies
+              WHERE movieid = (
+                SELECT movieid
+                FROM imdb.movies2directors
+                GROUP BY movieid
+                ORDER BY COUNT(directorid) DESC
+                LIMIT 1);
+             ]]>
         </sql>
     </question>
 
     <question id="4">
-        <answer></answer>
+        <answer>2500324</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+            SELECT ac.actorid
+            FROM imdb.actors ac
+            JOIN imdb.movies2actors m2a
+            ON ac.actorid = m2a.actorid
+            WHERE m2a.movieid IN (
+              SELECT m2a.movieid
+              FROM imdb.actors AS ac
+              INNER JOIN imdb.movies2actors AS m2a
+              ON ac.actorid = m2a.actorid
+              WHERE ac.name = 'Hanks, Tom')
+            AND ac.name <> 'Hanks, Tom'
+            GROUP BY ac.actorid
+            ORDER BY COUNT(ac.actorid) DESC
+            LIMIT 1;
+           ]]>
         </sql>
     </question>
 
     <question id="5">
-        <answer></answer>
+        <answer>3</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[ 
+            SELECT COUNT(*)
+            FROM (
+            SELECT m1.actorid, m2.actorid, COUNT(*)
+            FROM imdb.movies2actors m1
+            JOIN imdb.movies2actors m2
+              ON m1.movieid = m2.movieid
+            WHERE m1.actorid < m2.actorid
+            GROUP BY m1.actorid, m2.actorid
+            HAVING COUNT(*) > 10);
+           ]]>
         </sql>
     </question>
 
     <question id="6">
-        <answer></answer>
+        <answer>1930</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+            SELECT (mv.year / 10) * 10 AS decade
+            FROM imdb.movies mv
+            JOIN imdb.ratings rt ON mv.movieid = rt.movieid
+            GROUP BY (mv.year / 10) * 10
+            ORDER BY AVG(rt.rank::float) DESC
+            LIMIT 1; 
+            ]]>
         </sql>
     </question>
 
