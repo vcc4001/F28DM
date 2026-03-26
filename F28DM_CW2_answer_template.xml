@@ -21,7 +21,7 @@
         <sql>
             <![CDATA[   
                 SELECT COUNT(*) FROM imdb.actors;
-              ]]>
+            ]]>
         </sql>
     </question>
 
@@ -35,7 +35,7 @@
                 FROM imdb.movies2directors
                 GROUP BY movieid
                 HAVING COUNT(directorid) > 7);
-            ]]>
+          ]]>
         </sql>
     </question>
 
@@ -51,7 +51,7 @@
                 GROUP BY movieid
                 ORDER BY COUNT(directorid) DESC
                 LIMIT 1);
-             ]]>
+          ]]>
         </sql>
     </question>
 
@@ -59,21 +59,21 @@
         <answer>2500324</answer>
         <sql>
           <![CDATA[
-            SELECT ac.actorid
-            FROM imdb.actors ac
-            JOIN imdb.movies2actors m2a
-            ON ac.actorid = m2a.actorid
-            WHERE m2a.movieid IN (
-              SELECT m2a.movieid
-              FROM imdb.actors AS ac
-              INNER JOIN imdb.movies2actors AS m2a
+              SELECT ac.actorid
+              FROM imdb.actors ac
+              JOIN imdb.movies2actors m2a
               ON ac.actorid = m2a.actorid
-              WHERE ac.name = 'Hanks, Tom')
-            AND ac.name <> 'Hanks, Tom'
-            GROUP BY ac.actorid
-            ORDER BY COUNT(ac.actorid) DESC
-            LIMIT 1;
-           ]]>
+              WHERE m2a.movieid IN (
+                SELECT m2a.movieid
+                FROM imdb.actors ac
+                INNER JOIN imdb.movies2actors m2a
+                ON ac.actorid = m2a.actorid
+                WHERE ac.name = 'Hanks, Tom')
+              AND ac.name <> 'Hanks, Tom'
+              GROUP BY ac.actorid
+              ORDER BY COUNT(ac.actorid) DESC
+              LIMIT 1;
+          ]]>
         </sql>
     </question>
 
@@ -81,16 +81,16 @@
         <answer>3</answer>
         <sql>
           <![CDATA[ 
-            SELECT COUNT(*)
-            FROM (
-            SELECT m1.actorid, m2.actorid, COUNT(*)
-            FROM imdb.movies2actors m1
-            JOIN imdb.movies2actors m2
-              ON m1.movieid = m2.movieid
-            WHERE m1.actorid < m2.actorid
-            GROUP BY m1.actorid, m2.actorid
-            HAVING COUNT(*) > 10);
-           ]]>
+              SELECT COUNT(*)
+              FROM (
+              SELECT m1.actorid, m2.actorid, COUNT(*)
+              FROM imdb.movies2actors m1
+              JOIN imdb.movies2actors m2
+                ON m1.movieid = m2.movieid
+              WHERE m1.actorid < m2.actorid
+              GROUP BY m1.actorid, m2.actorid
+              HAVING COUNT(*) > 10);
+          ]]>
         </sql>
     </question>
 
@@ -98,48 +98,86 @@
         <answer>1930</answer>
         <sql>
           <![CDATA[
-            SELECT (mv.year / 10) * 10 AS decade
-            FROM imdb.movies mv
-            JOIN imdb.ratings rt ON mv.movieid = rt.movieid
-            GROUP BY (mv.year / 10) * 10
-            ORDER BY AVG(rt.rank::float) DESC
-            LIMIT 1; 
-            ]]>
+              SELECT (mv.year / 10) * 10 AS decade
+              FROM imdb.movies mv
+              JOIN imdb.ratings rt ON mv.movieid = rt.movieid
+              GROUP BY (mv.year / 10) * 10
+              ORDER BY AVG(rt.rank::float) DESC
+              LIMIT 1; 
+          ]]>
         </sql>
     </question>
 
     <question id="7">
-        <answer></answer>
+        <answer>9</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT COUNT(*)
+              FROM (SELECT mv.movieid
+              FROM imdb.movies mv
+              JOIN imdb.movies2directors md
+                ON mv.movieid = md.movieid
+              WHERE genre IS NULL);
+          ]]>
         </sql>
     </question>
 
     <question id="8">
-        <answer></answer>
+        <answer>0</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT COUNT(dr.movieid)
+              FROM imdb.movies2directors dr
+              JOIN imdb.movies2writers wr ON dr.movieid = wr.movieid
+              JOIN imdb.actors a ON a.actorid = dr.directorid
+              LEFT JOIN imdb.movies2actors ma ON ma.movieid = dr.movieid 
+              WHERE dr.directorid = wr.writerid
+                AND ma.actorid IS NULL;
+          ]]>
         </sql>
     </question>
 
     <question id="9">
-        <answer></answer>
+        <answer>99</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT COUNT(DISTINCT movieid)
+              FROM (SELECT * 
+                    FROM imdb.runningtimes
+                    WHERE time1 > 160
+                    ORDER BY movieid);
+          ]]>
         </sql>
     </question>
 
     <question id="10">
-        <answer></answer>
+        <answer>1694741</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT ma.actorid
+              FROM imdb.movies2actors ma
+              JOIN imdb.movies m ON m.movieid = ma.movieid
+              WHERE m.year < 2015 
+              GROUP BY ma.actorid
+              HAVING COUNT(ma.movieid) > 43 AND EXISTS (SELECT *
+                  FROM imdb.movies2directors md
+                  JOIN imdb.directors d ON md.directorid = d.directorid
+                  JOIN imdb.movies2actors m2a ON md.movieid = m2a.movieid
+                  WHERE d.name = 'Spielberg, Steven'
+                    AND m2a.actorid = ma.actorid);
+          ]]>
         </sql>
     </question>
 
     <question id="11">
-        <answer></answer>
+        <answer>78</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT COUNT(*)
+              FROM scenicornot.locations
+              WHERE ST_Within(geom_bng,
+                ST_Buffer(ST_SetSRID(ST_MakePoint(326623,523330),27700), 5000));
+          ]]>
         </sql>
     </question>
 
