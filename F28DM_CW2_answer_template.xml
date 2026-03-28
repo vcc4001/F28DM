@@ -20,7 +20,10 @@
         <answer>Hamlet (1907)</answer>
         <sql>
             <![CDATA[   
-                SELECT COUNT(*) FROM imdb.actors;
+                SELECT m.title
+                FROM imdb.movies m
+                ORDER BY m.year ASC
+                LIMIT 1;
             ]]>
         </sql>
     </question>
