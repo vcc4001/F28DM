@@ -182,16 +182,36 @@
     </question>
 
     <question id="12">
-        <answer></answer>
+        <answer>616</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT h.cell_id
+              FROM scenicornot.hexgrid10km h
+              JOIN scenicornot.locations l 
+                ON ST_INTERSECTS(h.geom, l.geom_bng)
+              GROUP BY h.cell_id
+              HAVING COUNT(h.cell_id) >= 3
+              ORDER BY AVG(l.average) DESC
+              LIMIT 1;
+          ]]>
         </sql>
     </question>
 
     <question id="13">
-        <answer></answer>
+        <answer>1870</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT h.cell_id
+              FROM scenicornot.hexgrid10km h
+              WHERE h.cell_id = (
+                SELECT h.cell_id
+                FROM scenicornot.hexgrid10km h
+                JOIN scenicornot.locations l 
+                  ON ST_INTERSECTS(h.geom, l.geom_bng)
+                GROUP BY h.cell_id
+                ORDER BY SUM(array_length(string_to_array(l.votes, ','),1)) DESC
+                LIMIT 1);
+          ]]>
         </sql>
     </question>
 
@@ -203,37 +223,66 @@
     </question>
 
     <question id="15">
-        <answer></answer>
+        <answer>8</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT events
+              FROM (
+                SELECT DATE_BIN('48 hours', datetime, TIMESTAMP '2011-05-01 00:00:00'),
+                  COUNT(*) as events
+                FROM quakes.scotquakes
+                GROUP BY DATE_BIN('48 hours', datetime, TIMESTAMP '2011-05-01 00:00:00')
+                ORDER by COUNT(*) DESC
+                LIMIT 1);
+          ]]>
         </sql>
     </question>
 
     <question id="16">
-        <answer></answer>
+        <answer>10</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT COUNT(DISTINCT l.fid)
+              FROM scenicornot.locations l
+              JOIN quakes.scotquakes q ON ST_DWithin(l.geom_bng, q.geom, 100);
+          ]]>
         </sql>
     </question>
 
     <question id="17">
-        <answer></answer>
+        <answer>13</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT COUNT(DISTINCT clusterid)
+              FROM (
+                SELECT DISTINCT ST_ClusterDBSCAN(geom, 15000, 4) OVER () AS clusterid
+                FROM quakes.scotquakes q)
+              WHERE clusterid IS NOT NULL;
+          ]]>
         </sql>
     </question>
 
     <question id="18">
-        <answer></answer>
+        <answer>1.1830428059330729</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT AVG(spd)
+              FROM trajectory.tracking
+              WHERE userid = 'p3' AND spd != 0;
+          ]]>
         </sql>
     </question>
 
     <question id="19">
-        <answer></answer>
+        <answer>p1</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT userid
+              FROM trajectory.tracking
+              GROUP BY userid
+              ORDER BY COUNT(userid) DESC
+              LIMIT 1;
+          ]]>
         </sql>
     </question>
 
