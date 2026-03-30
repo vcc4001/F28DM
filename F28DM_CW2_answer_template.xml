@@ -37,7 +37,8 @@
                 SELECT movieid, COUNT(directorid)
                 FROM imdb.movies2directors
                 GROUP BY movieid
-                HAVING COUNT(directorid) > 7);
+                HAVING COUNT(directorid) > 7
+              ) AS movie_count;
           ]]>
         </sql>
     </question>
@@ -52,7 +53,7 @@
                 SELECT movieid
                 FROM imdb.movies2directors
                 GROUP BY movieid
-                ORDER BY COUNT(directorid) DESC
+                ORDER BY COUNT(directorid) DESC, movieid
                 LIMIT 1);
           ]]>
         </sql>
@@ -86,13 +87,23 @@
           <![CDATA[ 
               SELECT COUNT(*)
               FROM (
-              SELECT m1.actorid, m2.actorid, COUNT(*)
-              FROM imdb.movies2actors m1
-              JOIN imdb.movies2actors m2
-                ON m1.movieid = m2.movieid
-              WHERE m1.actorid < m2.actorid
-              GROUP BY m1.actorid, m2.actorid
-              HAVING COUNT(*) > 10);
+                SELECT m1.actorid
+                FROM imdb.movies2actors m1
+                JOIN imdb.movies2actors m2
+                  ON m1.movieid = m2.movieid
+                WHERE m1.actorid < m2.actorid
+                GROUP BY m1.actorid, m2.actorid
+                HAVING COUNT(*) > 10
+                
+                UNION
+                
+                  SELECT m2.actorid
+                FROM imdb.movies2actors m1
+                JOIN imdb.movies2actors m2
+                  ON m1.movieid = m2.movieid
+                WHERE m1.actorid < m2.actorid
+                GROUP BY m1.actorid, m2.actorid
+                HAVING COUNT(*) > 10) AS actor_count;
           ]]>
         </sql>
     </question>
@@ -115,12 +126,12 @@
         <answer>9</answer>
         <sql>
           <![CDATA[
-              SELECT COUNT(*)
+              SELECT COUNT(DISTINCT movieid)
               FROM (SELECT mv.movieid
-              FROM imdb.movies mv
-              JOIN imdb.movies2directors md
-                ON mv.movieid = md.movieid
-              WHERE genre IS NULL);
+                FROM imdb.movies mv
+                JOIN imdb.movies2directors md
+                  ON mv.movieid = md.movieid
+                WHERE genre IS NULL) AS no_genre_movies;
           ]]>
         </sql>
     </question>
@@ -129,26 +140,32 @@
         <answer>0</answer>
         <sql>
           <![CDATA[
-              SELECT COUNT(dr.movieid)
+              SELECT COUNT(DISTINCT dr.movieid)
               FROM imdb.movies2directors dr
               JOIN imdb.movies2writers wr ON dr.movieid = wr.movieid
+                AND dr.directorid = wr.writerid
               JOIN imdb.actors a ON a.actorid = dr.directorid
-              LEFT JOIN imdb.movies2actors ma ON ma.movieid = dr.movieid 
-              WHERE dr.directorid = wr.writerid
-                AND ma.actorid IS NULL;
+              WHERE NOT EXISTS (
+                SELECT *
+                FROM imdb.movies2actors ac
+                WHERE ac.movieid = dr.movieid
+                  AND ac.actorid = dr.directorid
+              );
           ]]>
         </sql>
     </question>
 
     <question id="9">
-        <answer>99</answer>
+        <answer>54501</answer>
         <sql>
           <![CDATA[
-              SELECT COUNT(DISTINCT movieid)
-              FROM (SELECT * 
-                    FROM imdb.runningtimes
-                    WHERE time1 > 160
-                    ORDER BY movieid);
+              SELECT  d.directorid
+              FROM imdb.runningtimes r
+              JOIN imdb.movies2directors d ON d.movieid = r.movieid  
+              WHERE time1 > 160
+              GROUP BY d.directorid
+              ORDER BY COUNT(DISTINCT d.movieid) DESC
+              LIMIT 1;
           ]]>
         </sql>
     </question>
@@ -162,7 +179,7 @@
               JOIN imdb.movies m ON m.movieid = ma.movieid
               WHERE m.year < 2015 
               GROUP BY ma.actorid
-              HAVING COUNT(ma.movieid) > 43 AND EXISTS (SELECT *
+              HAVING COUNT(DISTINCT ma.movieid) > 43 AND EXISTS (SELECT *
                   FROM imdb.movies2directors md
                   JOIN imdb.directors d ON md.directorid = d.directorid
                   JOIN imdb.movies2actors m2a ON md.movieid = m2a.movieid
@@ -178,8 +195,8 @@
           <![CDATA[
               SELECT COUNT(*)
               FROM scenicornot.locations
-              WHERE ST_Within(geom_bng,
-                ST_Buffer(ST_SetSRID(ST_MakePoint(326623,523330),27700), 5000));
+              WHERE ST_DWithin(geom_bng,
+                ST_SetSRID(ST_MakePoint(326623,523330),27700), 5000);
           ]]>
         </sql>
     </question>
@@ -193,7 +210,7 @@
               JOIN scenicornot.locations l 
                 ON ST_INTERSECTS(h.geom, l.geom_bng)
               GROUP BY h.cell_id
-              HAVING COUNT(h.cell_id) >= 3
+              HAVING COUNT(l.*) >= 3
               ORDER BY AVG(l.average) DESC
               LIMIT 1;
           ]]>
@@ -201,42 +218,50 @@
     </question>
 
     <question id="13">
-        <answer>1870</answer>
+        <answer>2222</answer>
         <sql>
           <![CDATA[
-              SELECT h.cell_id
-              FROM scenicornot.hexgrid10km h
-              WHERE h.cell_id = (
-                SELECT h.cell_id
+              SELECT MAX(total_votes)
+              FROM (
+                SELECT SUM(array_length(string_to_array(l.votes, ','),1)) AS total_votes
                 FROM scenicornot.hexgrid10km h
                 JOIN scenicornot.locations l 
                   ON ST_INTERSECTS(h.geom, l.geom_bng)
                 GROUP BY h.cell_id
-                ORDER BY SUM(array_length(string_to_array(l.votes, ','),1)) DESC
-                LIMIT 1);
+              ) AS max_votes;
           ]]>
         </sql>
     </question>
 
     <question id="14">
-        <answer></answer>
+        <answer>1618,1688</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              WITH hex_scores AS (
+                  SELECT h.cell_id, h.geom, AVG(l.average) AS avg_score
+                  FROM scenicornot.hexgrid10km h
+                  JOIN scenicornot.locations l ON ST_Intersects(l.geom_bng, h.geom)
+                  GROUP BY h.cell_id, h.geom
+              )
+              SELECT CONCAT(a.cell_id,',', b.cell_id)
+              FROM hex_scores a
+              JOIN hex_scores b ON ST_Touches(a.geom, b.geom)
+              WHERE a.cell_id < b.cell_id
+              ORDER BY ABS(a.avg_score - b.avg_score) DESC
+              LIMIT 1;
+          ]]>
         </sql>
     </question>
 
     <question id="15">
-        <answer>8</answer>
+        <answer>2022-04-19 00:00:00</answer>
         <sql>
           <![CDATA[
-              SELECT events
-              FROM (
-                SELECT DATE_BIN('48 hours', datetime, TIMESTAMP '2011-05-01 00:00:00'),
-                  COUNT(*) as events
-                FROM quakes.scotquakes
-                GROUP BY DATE_BIN('48 hours', datetime, TIMESTAMP '2011-05-01 00:00:00')
-                ORDER by COUNT(*) DESC
-                LIMIT 1);
+              SELECT DATE_BIN('48 hours', datetime, TIMESTAMP '2011-05-01 00:00:00')
+              FROM quakes.scotquakes
+              GROUP BY DATE_BIN('48 hours', datetime, TIMESTAMP '2011-05-01 00:00:00')
+              ORDER by COUNT(*) DESC
+              LIMIT 1;
           ]]>
         </sql>
     </question>
@@ -271,7 +296,7 @@
           <![CDATA[
               SELECT AVG(spd)
               FROM trajectory.tracking
-              WHERE userid = 'p3' AND spd != 0;
+              WHERE userid = 'p3' AND spd > 0;
           ]]>
         </sql>
     </question>
@@ -290,45 +315,108 @@
     </question>
 
     <question id="20">
-        <answer></answer>
+        <answer>p3</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              WITH user_routes AS (
+              SELECT userid, 
+                  ST_MAKELINE(geom ORDER BY datetime) AS route_geom
+              FROM trajectory.tracking
+              GROUP BY userid
+              )
+              SELECT userid
+              FROM user_routes
+              ORDER BY ST_LENGTH(route_geom) / 
+                  ST_DISTANCE(ST_STARTPOINT(route_geom), ST_ENDPOINT(route_geom)) DESC
+              LIMIT 1;
+          ]]>
         </sql>
     </question>
 
     <question id="21">
-        <answer></answer>
+        <answer>0.013098790136468603</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT ST_LENGTH(ST_MAKELINE(geom ORDER BY datetime))
+              FROM trajectory.tracking
+              WHERE userid = 'p3';
+          ]]>
         </sql>
     </question>
 
     <question id="22">
-        <answer></answer>
+        <answer>8</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT EXTRACT(MONTH FROM date_taken) AS month_
+              FROM flickr.flickr_edin
+              GROUP BY month_
+              ORDER BY COUNT(*) DESC
+              LIMIT 1;
+          ]]>
         </sql>
     </question>
 
 
     <question id="23">
-        <answer></answer>
+        <answer>19473027@N00</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT userid
+              FROM flickr.flickr_edin
+              GROUP BY userid
+              ORDER BY COUNT(DISTINCT (FLOOR(ST_X(geom)/100), FLOOR(ST_Y(geom)/100))) DESC
+              LIMIT 1;
+          ]]>
         </sql>
     </question>
 
     <question id="24">
-        <answer></answer>
+        <answer>87</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              SELECT COUNT(*)
+              FROM (
+              SELECT osm_name
+              FROM accident.network
+              WHERE osm_name ILIKE '%avenue%'
+              GROUP BY osm_name
+              HAVING COUNT(DISTINCT osm_id) > 1) AS avenues;
+          ]]>
         </sql>
     </question>
 
     <question id="25">
-        <answer></answer>
+        <answer>a</answer>
         <sql>
-          <![CDATA[   your SQL ;   ]]>
+          <![CDATA[
+              WITH route_stats AS (
+                SELECT 'a' AS route_id, 
+                      COUNT(c.id) AS crash_count, 
+                      (ST_Length(r.geom) / 1000.0) AS length_km
+                FROM accident.route_a r
+                LEFT JOIN accident.edincrash c ON ST_DWithin(c.geom, r.geom, 15)
+                GROUP BY r.geom
+                UNION ALL
+                SELECT 'b', 
+                      COUNT(c.id), 
+                      (ST_Length(r.geom) / 1000.0)
+                FROM accident.route_b r
+                LEFT JOIN accident.edincrash c ON ST_DWithin(c.geom, r.geom, 15)
+                GROUP BY r.geom
+                UNION ALL
+                SELECT 'c', 
+                      COUNT(c.id), 
+                      (ST_Length(r.geom) / 1000.0)
+                FROM accident.route_c r
+                LEFT JOIN accident.edincrash c ON ST_DWithin(c.geom, r.geom, 15)
+                GROUP BY r.geom
+            )
+            SELECT route_id
+            FROM route_stats
+            ORDER BY crash_count / NULLIF(length_km, 0) DESC
+            LIMIT 1;
+          ]]>
         </sql>
     </question>
 
